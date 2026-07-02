@@ -1,0 +1,5 @@
+plugins { id 'com.android.application' version '8.7.3' }
+
+android { namespace 'com.chenboda01.serventrobochef'; compileSdk 35
+    defaultConfig { applicationId 'com.chenboda01.serventrobochef'; minSdk 23; targetSdk 35; versionCode 1; versionName '1.0' }
+}
