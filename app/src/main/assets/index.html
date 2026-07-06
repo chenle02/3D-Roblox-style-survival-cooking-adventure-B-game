@@ -1,1 +1,836 @@
-<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>Servent Signal Lost</title><style>html,body{margin:0;height:100%;overflow:hidden;background:#05070b;color:white;font-family:system-ui}#game{display:block;width:100vw;height:100vh;background:linear-gradient(#071625,#19160e)}#ui{position:fixed;inset:0;pointer-events:none}.panel{position:absolute;left:12px;top:10px;background:#081727dd;border:1px solid #24506d;border-radius:14px;padding:10px;min-width:260px}.title{font-size:20px;font-weight:900}.bar{height:12px;background:#111;border:1px solid #6af;border-radius:99px;overflow:hidden;margin-top:6px}.fill{height:100%;background:linear-gradient(90deg,#28e,#f33);width:100%}.hint{font-size:12px;color:#bcd;margin-top:5px}.btn{pointer-events:auto;position:absolute;border:0;border-radius:16px;background:#0b84ff;color:white;font-weight:900;padding:13px 18px}.joy{pointer-events:auto;position:absolute;left:28px;bottom:28px;width:126px;height:126px;border-radius:50%;background:#ffffff22;border:2px solid #ffffff55}.knob{position:absolute;left:38px;top:38px;width:46px;height:46px;border-radius:50%;background:#5df}.act{right:24px;bottom:38px}.jump{right:26px;bottom:105px;background:#18a058}.cook{right:115px;bottom:38px;background:#e85d04}.msg{position:absolute;right:12px;top:10px;width:330px;background:#100f18dd;border:1px solid #654;border-radius:14px;padding:10px}.choice{pointer-events:auto;margin-top:8px;margin-right:6px;border:0;border-radius:12px;background:#344;color:white;padding:9px;font-weight:800}</style></head><body><canvas id="game"></canvas><div id="ui"><div class="panel"><div class="title">Servent: Signal Lost</div><div>RoboChef Battery</div><div class="bar"><div id="battery" class="fill"></div></div><div id="stats" class="hint">Food 0 · Parts 0 · Signal 0</div><div class="hint">Move with joystick/WASD. Collect parts. Cook. Recharge before shutdown.</div></div><div class="msg"><b id="radio">Radio: ...static...</b><div id="story" class="hint">Strange transmissions are arriving from impossible places.</div><button class="choice" onclick="answer(1)">Answer signal</button><button class="choice" onclick="answer(2)">Ignore it</button></div><div id="joy" class="joy"><div id="knob" class="knob"></div></div><button class="btn jump" onclick="jump()">Jump</button><button class="btn cook" onclick="cook()">Cook</button><button class="btn act" onclick="act()">Interact</button></div><script>const c=document.getElementById('game'),x=c.getContext('2d');let W,H;function size(){W=c.width=innerWidth;H=c.height=innerHeight}onresize=size;size();let keys={},px=0,pz=0,vy=0,y=0,cam=0,batt=100,food=0,parts=0,signal=0,msg=0;let objs=[];function add(t,x,z){objs.push({t,x,z,a:Math.random()*6})}for(let i=0;i<20;i++)add(['part','solar','gen','meal'][i%4],Math.random()*1600-800,Math.random()*1600-800);onkeydown=e=>keys[e.key.toLowerCase()]=1;onkeyup=e=>keys[e.key.toLowerCase()]=0;let jx=0,jy=0;joy.ontouchmove=e=>{let r=joy.getBoundingClientRect(),t=e.touches[0];jx=(t.clientX-r.left-63)/63;jy=(t.clientY-r.top-63)/63;let m=Math.hypot(jx,jy);if(m>1){jx/=m;jy/=m}knob.style.left=38+jx*38+'px';knob.style.top=38+jy*38+'px'};joy.ontouchend=e=>{jx=jy=0;knob.style.left='38px';knob.style.top='38px'};function jump(){if(y<=0)vy=13}function cook(){if(parts>0&&batt>10){parts--;food++;batt-=10;flash('RoboChef cooked Quantum Noodles!')}}function act(){let n=near();if(!n){flash('Nothing nearby');return}if(n.t=='part'){parts++;flash('Collected robot part');remove(n)}else if(n.t=='solar'){batt=Math.min(100,batt+25);flash('Solar recharge +25%')}else if(n.t=='gen'){batt=Math.min(100,batt+45);flash('Generator recharge +45%')}else if(n.t=='meal'){food++;flash('Found absurd meal');remove(n)}}function answer(o){signal++;batt-=5;if(o==1){flash('You answered. The map shifted.');for(let i=0;i<4;i++)add('part',px+Math.random()*500-250,pz+Math.random()*500-250)}else flash('You ignored it. The static got louder.');radio.textContent='Radio: transmission '+signal;story.textContent=['Do not build the chef.','We found Earth, but not yours.','Turn off generator 3.','The soup is watching.'][signal%4]}function flash(s){story.textContent=s;msg=90}function remove(o){objs=objs.filter(q=>q!==o)}function near(){return objs.find(o=>Math.hypot(o.x-px,o.z-pz)<55)}function proj(x0,z0,h=0){let dx=x0-px,dz=z0-pz,cs=Math.cos(cam),sn=Math.sin(cam),rx=dx*cs-dz*sn,rz=dx*sn+dz*cs+520;if(rz<40)return null;let sc=420/rz;return [W/2+rx*sc,H*0.58-h*sc,sc,rz]}function cube(x0,z0,col,label){let p=proj(x0,z0,0);if(!p)return;let s=50*p[2];x.fillStyle=col;x.fillRect(p[0]-s/2,p[1]-s,s,s);x.strokeStyle='#fff8';x.strokeRect(p[0]-s/2,p[1]-s,s,s);x.fillStyle='white';x.font=Math.max(10,15*p[2])+'px system-ui';x.fillText(label,p[0]-s/2,p[1]-s-5)}function loop(){requestAnimationFrame(loop);let mx=(keys.d?1:0)-(keys.a?1:0)+jx,my=(keys.s?1:0)-(keys.w?1:0)+jy;if(keys.arrowleft)cam-=.045;if(keys.arrowright)cam+=.045;let sp=4;if(mx||my){let m=Math.hypot(mx,my);mx/=m;my/=m;px+=(mx*Math.cos(cam)-my*Math.sin(cam))*sp;pz+=(mx*Math.sin(cam)+my*Math.cos(cam))*sp;batt-=.015}vy-=.7;y=Math.max(0,y+vy);if(y==0&&vy<0)vy=0;if(batt<=0){batt=0;flash('RoboChef shut down forever. Find power next run.')}x.clearRect(0,0,W,H);let grd=x.createLinearGradient(0,0,0,H);grd.addColorStop(0,'#071625');grd.addColorStop(.55,'#15120c');grd.addColorStop(1,'#0b1309');x.fillStyle=grd;x.fillRect(0,0,W,H);x.fillStyle='#263';x.fillRect(0,H*.58,W,H*.42);for(let i=-8;i<=8;i++){let a=proj(i*100,-900),b=proj(i*100,1000);if(a&&b){x.strokeStyle='#ffffff18';x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke()}a=proj(-900,i*100);b=proj(900,i*100);if(a&&b){x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke()}}cube(0,0,'#555','Radio');cube(120,40,'#953','Kitchen');cube(-140,80,'#246','Signal Tower');cube(230,-110,'#682','Solar Field');objs.sort((a,b)=>b.z-a.z).forEach(o=>cube(o.x,o.z,{part:'#aaa',solar:'#fc3',gen:'#48f',meal:'#f5a'}[o.t],o.t));let py=H*.58-55-y;x.fillStyle='#0cf';x.fillRect(W/2-24,py-48,48,70);x.fillStyle='#eee';x.fillRect(W/2-16,py-78,32,30);x.fillStyle='#f33';x.fillRect(W/2+20,py-38,14,45);x.fillStyle='#8ef';x.fillText('RoboChef',W/2-35,py-88);battery.style.width=batt+'%';stats.textContent='Food '+food+' · Parts '+parts+' · Signal '+signal+' · X '+px.toFixed(0)+' Z '+pz.toFixed(0)}loop();</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Servent Signal Lost</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --glass: rgba(5, 14, 24, 0.72);
+      --glass-strong: rgba(8, 21, 34, 0.88);
+      --line: rgba(111, 231, 255, 0.38);
+      --blue: #55d8ff;
+      --green: #5dff9b;
+      --amber: #ffca5b;
+      --red: #ff5a6d;
+      --text: #ecfbff;
+      --muted: #99b4c4;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #03060b;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      touch-action: none;
+      user-select: none;
+    }
+
+    #game {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at 50% 15%, #163752 0%, #071625 45%, #04070c 100%);
+    }
+
+    #ui {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      padding: 14px;
+    }
+
+    .topbar {
+      position: absolute;
+      left: 14px;
+      top: 12px;
+      right: 14px;
+      display: grid;
+      grid-template-columns: minmax(220px, 360px) 1fr minmax(220px, 360px);
+      gap: 12px;
+      align-items: start;
+    }
+
+    .glass {
+      background: linear-gradient(135deg, rgba(8, 22, 35, 0.92), rgba(4, 9, 17, 0.65));
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35), inset 0 0 30px rgba(85, 216, 255, 0.04);
+      backdrop-filter: blur(10px);
+    }
+
+    .panel {
+      padding: 12px 14px;
+    }
+
+    .title {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      font-weight: 950;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      font-size: 18px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid rgba(93, 255, 155, 0.45);
+      color: var(--green);
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .bar {
+      height: 13px;
+      background: rgba(0, 0, 0, 0.36);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 9px;
+    }
+
+    .fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--green), var(--amber), var(--red));
+      box-shadow: 0 0 18px rgba(93, 255, 155, 0.42);
+      transition: width 0.18s ease;
+    }
+
+    .statgrid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .stat {
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 13px;
+      padding: 8px;
+      background: rgba(255,255,255,.045);
+    }
+
+    .stat b {
+      display: block;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .mission {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 12px 16px;
+      text-align: center;
+    }
+
+    .mission .label {
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    #missionText {
+      margin-top: 5px;
+      font-size: 15px;
+      line-height: 1.35;
+    }
+
+    .radio {
+      padding: 12px 14px;
+    }
+
+    .radio-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+      color: var(--blue);
+      font-weight: 950;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      font-size: 13px;
+    }
+
+    #story {
+      margin-top: 8px;
+      color: #d9f7ff;
+      line-height: 1.36;
+      font-size: 13px;
+      min-height: 38px;
+    }
+
+    .choiceRow {
+      margin-top: 10px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      pointer-events: auto;
+    }
+
+    .choice {
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 13px;
+      color: white;
+      background: rgba(85, 216, 255, 0.16);
+      padding: 9px 11px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .choice.secondary {
+      background: rgba(255, 202, 91, 0.14);
+    }
+
+    .crosshair {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 30px;
+      height: 30px;
+      transform: translate(-50%, -50%);
+      opacity: .78;
+    }
+
+    .crosshair::before,
+    .crosshair::after {
+      content: "";
+      position: absolute;
+      background: rgba(236, 251, 255, .8);
+      box-shadow: 0 0 12px rgba(85,216,255,.9);
+    }
+
+    .crosshair::before {
+      left: 14px;
+      top: 3px;
+      width: 2px;
+      height: 24px;
+    }
+
+    .crosshair::after {
+      top: 14px;
+      left: 3px;
+      width: 24px;
+      height: 2px;
+    }
+
+    .centerHint {
+      position: absolute;
+      left: 50%;
+      top: calc(50% + 34px);
+      transform: translateX(-50%);
+      color: #d8faff;
+      font-size: 12px;
+      background: rgba(0,0,0,.36);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 999px;
+      padding: 6px 10px;
+      opacity: 0;
+      transition: opacity .15s ease;
+      white-space: nowrap;
+    }
+
+    .centerHint.show { opacity: 1; }
+
+    .bottomDock {
+      position: absolute;
+      left: 14px;
+      right: 14px;
+      bottom: 14px;
+      display: grid;
+      grid-template-columns: 160px 1fr 260px;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .joy {
+      pointer-events: auto;
+      width: 132px;
+      height: 132px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 50% 50%, rgba(85,216,255,.18), rgba(255,255,255,.06)),
+        rgba(255,255,255,.05);
+      border: 2px solid rgba(255,255,255,.22);
+      box-shadow: inset 0 0 24px rgba(85,216,255,.08);
+      position: relative;
+    }
+
+    .knob {
+      position: absolute;
+      left: 40px;
+      top: 40px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #c8fbff, #55d8ff);
+      box-shadow: 0 0 24px rgba(85,216,255,.65);
+    }
+
+    .toolbelt {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      align-items: center;
+      padding: 10px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .slot {
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      border-radius: 15px;
+      padding: 9px 12px;
+      min-width: 88px;
+      text-align: center;
+    }
+
+    .slot b {
+      display: block;
+      font-size: 13px;
+    }
+
+    .slot span {
+      display: block;
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+      pointer-events: auto;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 16px;
+      color: #061019;
+      font-weight: 950;
+      font-size: 14px;
+      padding: 14px 12px;
+      background: linear-gradient(135deg, #d7fbff, var(--blue));
+      box-shadow: 0 8px 25px rgba(0,0,0,.28);
+      cursor: pointer;
+    }
+
+    .btn.cook { background: linear-gradient(135deg, #fff0b8, var(--amber)); }
+    .btn.jump { background: linear-gradient(135deg, #d9ffd9, var(--green)); }
+    .btn.danger { background: linear-gradient(135deg, #ffd4db, var(--red)); }
+
+    .weapon {
+      position: absolute;
+      right: 7vw;
+      bottom: 4vh;
+      width: min(310px, 42vw);
+      height: min(190px, 26vh);
+      pointer-events: none;
+      filter: drop-shadow(0 18px 28px rgba(0,0,0,.55));
+    }
+
+    .weapon .forearm {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 70%;
+      height: 42%;
+      border-radius: 28px 12px 0 28px;
+      background: linear-gradient(135deg, #343c46, #111820 52%, #070b10);
+      border: 1px solid rgba(255,255,255,.13);
+      transform: rotate(-9deg);
+    }
+
+    .weapon .scanner {
+      position: absolute;
+      right: 28%;
+      bottom: 45%;
+      width: 42%;
+      height: 38%;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #d6f9ff, #2cb8e8 45%, #0d3152);
+      border: 2px solid rgba(255,255,255,.3);
+      transform: rotate(-12deg);
+      box-shadow: inset 0 0 20px rgba(255,255,255,.24), 0 0 22px rgba(85,216,255,.45);
+    }
+
+    .weapon .light {
+      position: absolute;
+      right: 39%;
+      bottom: 59%;
+      width: 16%;
+      height: 10%;
+      border-radius: 999px;
+      background: var(--green);
+      box-shadow: 0 0 22px var(--green);
+      transform: rotate(-12deg);
+    }
+
+    .lookTip {
+      position: absolute;
+      right: 16px;
+      bottom: 168px;
+      color: rgba(236,251,255,.65);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    @media (max-width: 820px) {
+      #ui { padding: 10px; }
+      .topbar {
+        left: 10px;
+        right: 10px;
+        top: 9px;
+        grid-template-columns: 1fr;
+      }
+      .mission { display: none; }
+      .radio { max-width: none; }
+      .bottomDock {
+        grid-template-columns: 145px 1fr 160px;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+      }
+      .slot { min-width: 66px; padding: 8px 6px; }
+      .actions { grid-template-columns: 1fr; }
+      .weapon { right: 16vw; width: 46vw; }
+      .lookTip { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div id="ui">
+    <div class="topbar">
+      <section class="panel glass">
+        <div class="title">
+          <span>Servent: Signal Lost</span>
+          <span class="tag">First Person</span>
+        </div>
+        <div class="bar" aria-label="RoboChef battery">
+          <div id="battery" class="fill"></div>
+        </div>
+        <div class="statgrid">
+          <div class="stat"><b id="foodStat">0</b><span>Food</span></div>
+          <div class="stat"><b id="partStat">0</b><span>Parts</span></div>
+          <div class="stat"><b id="signalStat">0</b><span>Signal</span></div>
+        </div>
+      </section>
+
+      <section class="mission glass">
+        <div class="label">Current Objective</div>
+        <div id="missionText">Find parts, cook food, and keep RoboChef powered before the signal eats the station.</div>
+      </section>
+
+      <section class="radio glass">
+        <div class="radio-head">
+          <span id="radio">Radio // static</span>
+          <span id="coords">X 0 · Z 0</span>
+        </div>
+        <div id="story">Strange transmissions are arriving from impossible places.</div>
+        <div class="choiceRow">
+          <button class="choice" onclick="answer(1)">Answer signal</button>
+          <button class="choice secondary" onclick="answer(2)">Ignore it</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="crosshair"></div>
+    <div id="centerHint" class="centerHint">Interact</div>
+
+    <div class="weapon" aria-hidden="true">
+      <div class="forearm"></div>
+      <div class="scanner"></div>
+      <div class="light"></div>
+    </div>
+
+    <div class="lookTip">Drag on the screen to look around<br>WASD / joystick to move</div>
+
+    <div class="bottomDock">
+      <div id="joy" class="joy"><div id="knob" class="knob"></div></div>
+
+      <div class="toolbelt glass">
+        <div class="slot"><b>Scanner</b><span>Crosshair</span></div>
+        <div class="slot"><b>RoboChef</b><span>Cook</span></div>
+        <div class="slot"><b>Radio</b><span>Choices</span></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn jump" onclick="jump()">Jump</button>
+        <button class="btn cook" onclick="cook()">Cook</button>
+        <button class="btn" onclick="act()">Interact</button>
+        <button class="btn danger" onclick="ping()">Ping</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const c = document.getElementById("game");
+    const x = c.getContext("2d");
+
+    let W = 0, H = 0;
+    function size() {
+      W = c.width = innerWidth * devicePixelRatio;
+      H = c.height = innerHeight * devicePixelRatio;
+      c.style.width = innerWidth + "px";
+      c.style.height = innerHeight + "px";
+      x.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      W = innerWidth;
+      H = innerHeight;
+    }
+    addEventListener("resize", size);
+    size();
+
+    const keys = {};
+    let px = 0, pz = -90, eyeY = 0, vy = 0;
+    let cam = 0, pitch = 0, bob = 0;
+    let batt = 100, food = 0, parts = 0, signal = 0;
+    let flashTimer = 0;
+    let jx = 0, jy = 0;
+    let draggingLook = false, lastLookX = 0, lastLookY = 0;
+
+    let objs = [];
+    const storyLines = [
+      "Do not build the chef.",
+      "We found Earth, but not yours.",
+      "Turn off generator 3.",
+      "The soup is watching.",
+      "Your kitchen is older than the moon.",
+      "Static has a flavor. It tastes like tomorrow."
+    ];
+
+    const fixed = [
+      { t: "radio", x: 0, z: 0, label: "Radio Station", color: "#607d8b", solid: true },
+      { t: "kitchen", x: 145, z: 70, label: "Kitchen", color: "#9b4d2f", solid: true },
+      { t: "tower", x: -165, z: 140, label: "Signal Tower", color: "#3a66b3", solid: true },
+      { t: "solar", x: 260, z: -130, label: "Solar Field", color: "#b08b25", solid: true }
+    ];
+
+    function add(t, ox, oz) {
+      objs.push({ t, x: ox, z: oz, a: Math.random() * Math.PI * 2 });
+    }
+
+    for (let i = 0; i < 26; i++) {
+      const t = ["part", "solar", "gen", "meal"][i % 4];
+      add(t, Math.random() * 1800 - 900, Math.random() * 1700 - 850);
+    }
+
+    onkeydown = e => keys[e.key.toLowerCase()] = 1;
+    onkeyup = e => keys[e.key.toLowerCase()] = 0;
+
+    function setJoy(clientX, clientY) {
+      const r = joy.getBoundingClientRect();
+      jx = (clientX - r.left - 66) / 66;
+      jy = (clientY - r.top - 66) / 66;
+      const m = Math.hypot(jx, jy);
+      if (m > 1) { jx /= m; jy /= m; }
+      knob.style.left = (40 + jx * 40) + "px";
+      knob.style.top = (40 + jy * 40) + "px";
+    }
+
+    joy.addEventListener("touchmove", e => {
+      e.preventDefault();
+      const t = e.touches[0];
+      setJoy(t.clientX, t.clientY);
+    }, { passive: false });
+
+    joy.addEventListener("touchend", () => {
+      jx = jy = 0;
+      knob.style.left = "40px";
+      knob.style.top = "40px";
+    });
+
+    c.addEventListener("pointerdown", e => {
+      draggingLook = true;
+      lastLookX = e.clientX;
+      lastLookY = e.clientY;
+    });
+
+    addEventListener("pointerup", () => draggingLook = false);
+
+    addEventListener("pointermove", e => {
+      if (!draggingLook) return;
+      cam += (e.clientX - lastLookX) * 0.006;
+      pitch += (e.clientY - lastLookY) * 0.004;
+      pitch = Math.max(-0.35, Math.min(0.35, pitch));
+      lastLookX = e.clientX;
+      lastLookY = e.clientY;
+    });
+
+    function jump() {
+      if (eyeY <= 0) vy = 10.5;
+    }
+
+    function cook() {
+      if (parts > 0 && batt > 10) {
+        parts--;
+        food++;
+        batt -= 10;
+        flash("RoboChef cooked Quantum Noodles. It smells like electricity.");
+      } else if (parts <= 0) {
+        flash("Need at least 1 robot part to cook with RoboChef.");
+      } else {
+        flash("Battery too low. Find solar power or a generator.");
+      }
+    }
+
+    function ping() {
+      batt = Math.max(0, batt - 2);
+      const n = near(160);
+      if (n) flash("Scanner ping: " + labelOf(n) + " is close.");
+      else flash("Scanner ping: nothing but rain, static, and trees.");
+    }
+
+    function act() {
+      const n = near(80);
+      if (!n) {
+        flash("Nothing close enough. Put the crosshair near an object.");
+        return;
+      }
+      if (n.t === "part") {
+        parts++;
+        flash("Collected a robot part. RoboChef upgrade possible.");
+        remove(n);
+      } else if (n.t === "solar") {
+        batt = Math.min(100, batt + 25);
+        flash("Solar recharge +25%. The panels hum softly.");
+      } else if (n.t === "gen") {
+        batt = Math.min(100, batt + 45);
+        flash("Generator recharge +45%. Something knocked back.");
+      } else if (n.t === "meal") {
+        food++;
+        flash("Found an absurd meal. It might be edible.");
+        remove(n);
+      } else if (n.t === "radio") {
+        answer(1);
+      } else if (n.t === "kitchen") {
+        cook();
+      } else if (n.t === "tower") {
+        signal++;
+        batt = Math.max(0, batt - 7);
+        flash("You tuned the tower. The impossible signal became clearer.");
+      }
+    }
+
+    function answer(option) {
+      signal++;
+      batt = Math.max(0, batt - 5);
+      if (option === 1) {
+        flash("You answered. The map shifted behind your eyes.");
+        for (let i = 0; i < 4; i++) add("part", px + Math.random() * 520 - 260, pz + Math.random() * 520 - 260);
+      } else {
+        flash("You ignored it. The static got louder anyway.");
+      }
+      radio.textContent = "Radio // transmission " + signal;
+      story.textContent = storyLines[signal % storyLines.length];
+    }
+
+    function flash(s) {
+      story.textContent = s;
+      missionText.textContent = s;
+      flashTimer = 100;
+    }
+
+    function remove(o) {
+      objs = objs.filter(q => q !== o);
+    }
+
+    function labelOf(o) {
+      return o.label || ({ part: "Robot Part", solar: "Solar Charger", gen: "Generator", meal: "Meal" }[o.t] || o.t);
+    }
+
+    function allObjects() {
+      return fixed.concat(objs);
+    }
+
+    function near(distance) {
+      let best = null;
+      let bestD = Infinity;
+      for (const o of allObjects()) {
+        const d = Math.hypot(o.x - px, o.z - pz);
+        if (d < distance && d < bestD) {
+          best = o;
+          bestD = d;
+        }
+      }
+      return best;
+    }
+
+    function project(x0, z0, height = 0) {
+      const dx = x0 - px;
+      const dz = z0 - pz;
+      const cs = Math.cos(cam), sn = Math.sin(cam);
+      const rx = dx * cs - dz * sn;
+      const rz = dx * sn + dz * cs;
+      if (rz < 18) return null;
+      const horizon = H * (0.52 + pitch);
+      const scale = 470 / rz;
+      return [W / 2 + rx * scale, horizon - (height - eyeY) * scale, scale, rz];
+    }
+
+    function groundPoint(x0, z0) {
+      return project(x0, z0, 0);
+    }
+
+    function drawWorldGrid() {
+      x.lineWidth = 1;
+      for (let i = -12; i <= 12; i++) {
+        let a = groundPoint(i * 100, -1000), b = groundPoint(i * 100, 1400);
+        if (a && b) {
+          x.strokeStyle = "rgba(180,255,220,.12)";
+          x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke();
+        }
+        a = groundPoint(-1100, i * 100); b = groundPoint(1100, i * 100);
+        if (a && b) {
+          x.strokeStyle = "rgba(180,255,220,.10)";
+          x.beginPath(); x.moveTo(a[0], a[1]); x.lineTo(b[0], b[1]); x.stroke();
+        }
+      }
+    }
+
+    function drawCube(o, w = 54, h = 70) {
+      const p = project(o.x, o.z, 0);
+      if (!p) return;
+      const [sx, sy, sc, rz] = p;
+      const distFade = Math.max(0.18, Math.min(1, 900 / rz));
+      const width = Math.max(7, w * sc);
+      const height = Math.max(9, h * sc);
+      const y = sy - height;
+      const color = o.color || ({ part: "#d8dde4", solar: "#ffd45d", gen: "#4fa3ff", meal: "#ff9e58" }[o.t] || "#ffffff");
+
+      x.globalAlpha = distFade;
+      x.fillStyle = color;
+      x.fillRect(sx - width / 2, y, width, height);
+
+      x.fillStyle = "rgba(255,255,255,.18)";
+      x.fillRect(sx - width / 2, y, width, Math.max(2, height * .18));
+
+      x.strokeStyle = "rgba(255,255,255,.56)";
+      x.strokeRect(sx - width / 2, y, width, height);
+
+      x.fillStyle = "rgba(236,251,255,.94)";
+      x.font = Math.max(10, 15 * sc) + "px system-ui";
+      x.textAlign = "center";
+      x.fillText(labelOf(o), sx, y - 7);
+      x.globalAlpha = 1;
+    }
+
+    function drawScene() {
+      x.clearRect(0, 0, W, H);
+
+      const sky = x.createLinearGradient(0, 0, 0, H);
+      sky.addColorStop(0, "#081c31");
+      sky.addColorStop(0.40, "#102030");
+      sky.addColorStop(0.62, "#1a140d");
+      sky.addColorStop(1, "#071109");
+      x.fillStyle = sky;
+      x.fillRect(0, 0, W, H);
+
+      x.fillStyle = "rgba(85,216,255,.18)";
+      for (let i = 0; i < 40; i++) {
+        const sx = (i * 137 + Math.sin(performance.now() * .0002 + i) * 18) % W;
+        const sy = (i * 47) % (H * .46);
+        x.fillRect(sx, sy, 2, 2);
+      }
+
+      const horizon = H * (0.52 + pitch);
+      x.fillStyle = "#18321f";
+      x.fillRect(0, horizon, W, H - horizon);
+
+      drawWorldGrid();
+
+      const visible = allObjects().slice().sort((a, b) => {
+        const da = Math.hypot(a.x - px, a.z - pz);
+        const db = Math.hypot(b.x - px, b.z - pz);
+        return db - da;
+      });
+
+      for (const o of visible) {
+        const size = o.solid ? [92, 110] : [52, 62];
+        drawCube(o, size[0], size[1]);
+      }
+
+      const n = near(90);
+      centerHint.textContent = n ? "Interact: " + labelOf(n) : "";
+      centerHint.classList.toggle("show", !!n);
+    }
+
+    function update() {
+      let strafe = (keys.d ? 1 : 0) - (keys.a ? 1 : 0) + jx;
+      let forward = (keys.w ? 1 : 0) - (keys.s ? 1 : 0) - jy;
+      if (keys.arrowleft) cam -= 0.045;
+      if (keys.arrowright) cam += 0.045;
+      if (keys.arrowup) pitch = Math.max(-0.35, pitch - 0.018);
+      if (keys.arrowdown) pitch = Math.min(0.35, pitch + 0.018);
+
+      const moving = Math.hypot(strafe, forward) > 0.02;
+      if (moving) {
+        const m = Math.hypot(strafe, forward);
+        strafe /= m;
+        forward /= m;
+        const speed = keys.shift ? 6.0 : 4.1;
+        px += (strafe * Math.cos(cam) + forward * Math.sin(cam)) * speed;
+        pz += (-strafe * Math.sin(cam) + forward * Math.cos(cam)) * speed;
+        batt = Math.max(0, batt - (keys.shift ? 0.026 : 0.016));
+        bob += 0.16;
+      } else {
+        bob *= 0.92;
+      }
+
+      vy -= 0.62;
+      eyeY = Math.max(0, eyeY + vy);
+      if (eyeY === 0 && vy < 0) vy = 0;
+
+      if (batt <= 0) {
+        batt = 0;
+        missionText.textContent = "RoboChef is offline. Find power next run.";
+      }
+
+      if (flashTimer > 0) flashTimer--;
+      else missionText.textContent = "Find parts, cook food, and keep RoboChef powered before the signal eats the station.";
+
+      battery.style.width = batt + "%";
+      foodStat.textContent = food;
+      partStat.textContent = parts;
+      signalStat.textContent = signal;
+      signalStat.style.color = signal >= 5 ? "var(--red)" : "var(--text)";
+      coords.textContent = "X " + px.toFixed(0) + " · Z " + pz.toFixed(0);
+
+      const handBob = Math.sin(bob) * 5;
+      document.querySelector(".weapon").style.transform = "translateY(" + handBob + "px)";
+    }
+
+    function loop() {
+      requestAnimationFrame(loop);
+      update();
+      drawScene();
+    }
+
+    loop();
+  </script>
+</body>
+</html>
